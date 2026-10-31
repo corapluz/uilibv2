@@ -1,11 +1,10 @@
 --========================================================================--
---  NEXO UI v3
+--  NEXO UI v2.1
 --
---  - Sidebar'li kompakt pencere (varsayilan 640x420)
---  - Tek font ailesi, duz renkler, 1px border, sade hover (bounce/pop yok)
---  - Yan yana iki kolon, kartlar otomatik boyutlanir (tween yarisi yok)
---  - Tema: preset + canli accent + ozel renkler + import/export
---  - Config: Flag destekli save/load/import/export
+--  Ayni yapi (ust tab'lar, topbar'da ayarlar, iki kolon), sadelestirilmis gorunum:
+--  - Duz renkler, 1px border, satirlar arasi ince ayirici cizgiler
+--  - Tek font ailesi, gradient / noise doku / pop-bounce animasyonu yok
+--  - Varsayilan tema koyu gri + mavi accent
 --========================================================================--
 
 local Players = game:GetService("Players")
@@ -13,11 +12,12 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
+local GuiService = game:GetService("GuiService")
 local Workspace = game:GetService("Workspace")
 
 local Nexo = {}
 Nexo.__index = Nexo
-Nexo.Version = "3.0.0"
+Nexo.Version = "2.1.0"
 
 local Window = {}
 Window.__index = Window
@@ -35,116 +35,123 @@ local function rgb(r, g, b)
 end
 
 local THEME_KEYS = {
-    "Accent", "Background", "Sidebar", "Surface", "SurfaceHover", "Elevated",
-    "Border", "BorderHover", "Text", "TextDim", "TextMuted", "Danger",
+    "Accent", "Window", "Surface", "Header", "Element", "ElementHover", "RowHover",
+    "Border", "Divider", "Text", "TextDim", "TextMuted", "Danger",
 }
 
--- Katman merdiveni: Background (icerik) < Sidebar (cerceve) < Surface (kart) < SurfaceHover
--- Elevated = kartlarin icine oyulmus input alanlari
+-- Window < Surface (kart) < Header < Element (input/buton) < ElementHover
 local Presets = {
-    Default = {
-        Accent = rgb(45, 176, 158),
-        Background = rgb(15, 17, 19),
-        Sidebar = rgb(20, 22, 25),
-        Surface = rgb(25, 28, 32),
-        SurfaceHover = rgb(33, 37, 42),
-        Elevated = rgb(18, 20, 23),
-        Border = rgb(41, 46, 52),
-        BorderHover = rgb(64, 71, 80),
-        Text = rgb(229, 232, 236),
-        TextDim = rgb(148, 155, 164),
-        TextMuted = rgb(98, 105, 114),
-        Danger = rgb(224, 90, 90),
-    },
     Dark = {
-        Accent = rgb(99, 120, 214),
-        Background = rgb(21, 21, 24),
-        Sidebar = rgb(26, 26, 30),
-        Surface = rgb(32, 32, 37),
-        SurfaceHover = rgb(41, 41, 47),
-        Elevated = rgb(24, 24, 28),
-        Border = rgb(50, 50, 57),
-        BorderHover = rgb(74, 74, 84),
-        Text = rgb(232, 232, 238),
-        TextDim = rgb(156, 156, 168),
-        TextMuted = rgb(104, 104, 116),
-        Danger = rgb(224, 90, 90),
-    },
-    Light = {
-        Accent = rgb(30, 140, 125),
-        Background = rgb(244, 245, 247),
-        Sidebar = rgb(234, 236, 240),
-        Surface = rgb(255, 255, 255),
-        SurfaceHover = rgb(240, 242, 245),
-        Elevated = rgb(241, 243, 246),
-        Border = rgb(216, 220, 227),
-        BorderHover = rgb(188, 194, 204),
-        Text = rgb(24, 28, 33),
-        TextDim = rgb(92, 99, 110),
-        TextMuted = rgb(140, 147, 157),
-        Danger = rgb(205, 62, 62),
+        Accent = rgb(112, 141, 228),
+        Window = rgb(20, 21, 24),
+        Surface = rgb(25, 26, 30),
+        Header = rgb(28, 29, 34),
+        Element = rgb(34, 36, 41),
+        ElementHover = rgb(42, 44, 50),
+        RowHover = rgb(30, 32, 37),
+        Border = rgb(40, 42, 48),
+        Divider = rgb(35, 37, 42),
+        Text = rgb(230, 232, 236),
+        TextDim = rgb(140, 145, 154),
+        TextMuted = rgb(92, 96, 105),
+        Danger = rgb(224, 98, 98),
     },
     Midnight = {
-        Accent = rgb(124, 108, 255),
-        Background = rgb(12, 14, 25),
-        Sidebar = rgb(17, 19, 32),
-        Surface = rgb(23, 26, 43),
-        SurfaceHover = rgb(32, 36, 58),
-        Elevated = rgb(15, 17, 29),
-        Border = rgb(40, 44, 70),
-        BorderHover = rgb(62, 67, 102),
+        Accent = rgb(130, 115, 255),
+        Window = rgb(14, 15, 26),
+        Surface = rgb(19, 21, 35),
+        Header = rgb(23, 25, 42),
+        Element = rgb(29, 32, 53),
+        ElementHover = rgb(37, 41, 66),
+        RowHover = rgb(24, 27, 45),
+        Border = rgb(38, 42, 68),
+        Divider = rgb(30, 33, 55),
         Text = rgb(230, 230, 250),
         TextDim = rgb(150, 153, 190),
         TextMuted = rgb(98, 102, 138),
-        Danger = rgb(224, 90, 90),
+        Danger = rgb(224, 98, 98),
     },
     Amoled = {
-        Accent = rgb(0, 208, 142),
-        Background = rgb(0, 0, 0),
-        Sidebar = rgb(8, 8, 8),
-        Surface = rgb(16, 16, 16),
-        SurfaceHover = rgb(26, 26, 26),
-        Elevated = rgb(9, 9, 9),
-        Border = rgb(36, 36, 36),
-        BorderHover = rgb(62, 62, 62),
+        Accent = rgb(96, 165, 250),
+        Window = rgb(0, 0, 0),
+        Surface = rgb(12, 12, 12),
+        Header = rgb(16, 16, 16),
+        Element = rgb(24, 24, 24),
+        ElementHover = rgb(32, 32, 32),
+        RowHover = rgb(18, 18, 18),
+        Border = rgb(32, 32, 32),
+        Divider = rgb(24, 24, 24),
         Text = rgb(240, 240, 240),
         TextDim = rgb(150, 150, 150),
         TextMuted = rgb(96, 96, 96),
-        Danger = rgb(224, 90, 90),
+        Danger = rgb(224, 98, 98),
     },
     Ocean = {
         Accent = rgb(66, 153, 225),
-        Background = rgb(10, 16, 24),
-        Sidebar = rgb(14, 22, 32),
-        Surface = rgb(20, 30, 43),
-        SurfaceHover = rgb(28, 41, 58),
-        Elevated = rgb(13, 20, 29),
-        Border = rgb(36, 52, 72),
-        BorderHover = rgb(56, 80, 108),
+        Window = rgb(11, 17, 25),
+        Surface = rgb(16, 25, 36),
+        Header = rgb(19, 30, 43),
+        Element = rgb(25, 38, 54),
+        ElementHover = rgb(33, 49, 69),
+        RowHover = rgb(21, 32, 46),
+        Border = rgb(34, 50, 70),
+        Divider = rgb(27, 40, 57),
         Text = rgb(224, 236, 247),
         TextDim = rgb(138, 158, 180),
         TextMuted = rgb(92, 110, 130),
-        Danger = rgb(224, 90, 90),
+        Danger = rgb(224, 98, 98),
+    },
+    Crimson = {
+        Accent = rgb(222, 86, 104),
+        Window = rgb(22, 19, 20),
+        Surface = rgb(28, 24, 25),
+        Header = rgb(32, 27, 28),
+        Element = rgb(40, 34, 36),
+        ElementHover = rgb(49, 42, 45),
+        RowHover = rgb(33, 28, 30),
+        Border = rgb(46, 39, 41),
+        Divider = rgb(38, 32, 34),
+        Text = rgb(236, 230, 231),
+        TextDim = rgb(150, 141, 143),
+        TextMuted = rgb(100, 93, 95),
+        Danger = rgb(240, 120, 120),
+    },
+    Light = {
+        Accent = rgb(70, 100, 210),
+        Window = rgb(240, 241, 244),
+        Surface = rgb(255, 255, 255),
+        Header = rgb(247, 248, 250),
+        Element = rgb(238, 240, 244),
+        ElementHover = rgb(228, 231, 237),
+        RowHover = rgb(246, 247, 250),
+        Border = rgb(216, 220, 227),
+        Divider = rgb(232, 235, 240),
+        Text = rgb(24, 28, 33),
+        TextDim = rgb(96, 103, 114),
+        TextMuted = rgb(146, 152, 162),
+        Danger = rgb(205, 62, 62),
     },
 }
 
-local PRESET_ORDER = { "Default", "Dark", "Light", "Midnight", "Amoled", "Ocean" }
+local PRESET_ORDER = { "Dark", "Midnight", "Amoled", "Ocean", "Crimson", "Light" }
 
--- eski tema anahtarlari (v2) -> yeni anahtarlar
+-- v2.0 tema anahtarlari -> yenileri
 local LegacyKeys = {
-    WindowBackground = "Sidebar",
-    TabBackground = "Background",
+    WindowBackground = "Window",
     CategoryBackground = "Surface",
+    CategoryTopBar = "Header",
     PrimaryText = "Text",
     SecondaryText = "TextDim",
     TitleText = "Text",
     ToggleActive = "Accent",
+    Stroke = "Border",
+    MainStroke = "Border",
 }
 
 local function AccentTextFor(color)
     local lum = 0.299 * color.R + 0.587 * color.G + 0.114 * color.B
-    if lum > 0.5 then
-        return rgb(10, 13, 15)
+    if lum > 0.55 then
+        return rgb(12, 14, 18)
     end
     return rgb(255, 255, 255)
 end
@@ -162,7 +169,7 @@ local F = {
 
 local T_FAST = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local T_MED = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local T_SLOW = TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local T_SLOW = TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
 local KeyNames = {
     [Enum.KeyCode.LeftControl] = "LCtrl",
@@ -177,6 +184,7 @@ local KeyNames = {
 }
 
 local CONFIG_FOLDER = "NexoUI"
+local TOPBAR_HEIGHT = 38
 
 --========================================================================--
 -- HELPERS
@@ -186,7 +194,7 @@ local function setProp(instance, key, value)
     instance[key] = value
 end
 
--- Property uygulayip en son Parent'i atar. Desteklenmeyen property sessizce uyarir.
+-- Property'leri uygular, Parent'i en son atar. Desteklenmeyen property uyari verir, kirmaz.
 local function Create(className, props)
     local instance = Instance.new(className)
     local parent = nil
@@ -220,7 +228,7 @@ local function Corner(parent, radius)
     return Create("UICorner", { CornerRadius = UDim.new(0, radius), Parent = parent })
 end
 
--- Pad(parent, hepsi) | Pad(parent, dikey, yatay) | Pad(parent, ust, sag, alt, sol)
+-- Pad(p, hepsi) | Pad(p, ust, sag, alt, sol)
 local function Pad(parent, top, right, bottom, left)
     return Create("UIPadding", {
         PaddingTop = UDim.new(0, top or 0),
@@ -245,7 +253,7 @@ local function Label(props)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Font = F.Regular,
-        TextSize = 13,
+        TextSize = 12,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextTruncate = Enum.TextTruncate.AtEnd,
     }
@@ -297,6 +305,13 @@ end
 
 local function normalize(value)
     return string.lower(tostring(value or ""))
+end
+
+-- Mouse konumu (ScreenGui koordinatinda, inset dusulmus)
+local function mouseXY()
+    local location = UserInputService:GetMouseLocation()
+    local inset = GuiService:GetGuiInset()
+    return location.X - inset.X, location.Y - inset.Y
 end
 
 --========================================================================--
@@ -402,7 +417,7 @@ local function GetGuiParent()
 end
 
 --========================================================================--
--- GLYPHS (asset'e bagimli olmayan cizilmis ikonlar)
+-- GLYPHS (asset'e bagli olmayan, cizilmis ikonlar)
 --========================================================================--
 
 local function Bar(parent, w, h, x, y, rotation)
@@ -517,7 +532,7 @@ function Window:_connect(signal, fn, bucket)
     return connection
 end
 
--- Instance'a tema fonksiyonu bagla. fn(theme) hem simdi hem her tema degisiminde calisir.
+-- fn(theme) hem simdi hem her tema degisiminde calisir
 function Window:_style(instance, fn)
     table.insert(self._styles, { inst = instance, fn = fn })
     fn(self._theme)
@@ -548,7 +563,7 @@ function Window:ApplyTheme()
 end
 
 function Window:_syncPickers()
-    for key, picker in pairs(self._themePickers or {}) do
+    for key, picker in pairs(self._themePickers) do
         local value = self._theme[key]
         if typeof(value) == "Color3" then
             picker:Set(value, true)
@@ -568,6 +583,9 @@ function Window:SetThemeColor(key, color)
 end
 
 function Window:SetThemePreset(name)
+    if name == "Default" then
+        name = "Dark"
+    end
     local preset = Presets[name]
     if not preset then
         warn("[Nexo] bilinmeyen tema: " .. tostring(name))
@@ -670,77 +688,59 @@ function Window:_runSearch()
 end
 
 --========================================================================--
--- WINDOW: NAV / PAGES
+-- WINDOW: TABS / PAGES
 --========================================================================--
 
-function Window:_makeNavItem(parent, title, icon)
-    local item = { hover = false, active = false }
+function Window:_makeTabButton(title, icon)
+    local item = { active = false, hover = false }
 
-    local frame = Create("Frame", {
-        Name = "NavItem",
-        BackgroundTransparency = 1,
+    local button = Create("TextButton", {
+        Name = "Tab",
+        AutomaticSize = Enum.AutomaticSize.X,
         BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, 30),
-        Parent = parent,
+        Font = F.Medium,
+        LayoutOrder = #self._tabs + 1,
+        Size = UDim2.new(0, 0, 0, 28),
+        Text = title,
+        TextSize = 12,
+        Parent = self._tabList,
     })
-    Corner(frame, 6)
-
-    local bar = Create("Frame", {
-        Name = "Indicator",
-        AnchorPoint = Vector2.new(0, 0.5),
-        BorderSizePixel = 0,
-        Position = UDim2.new(0, 0, 0.5, 0),
-        Size = UDim2.fromOffset(3, 14),
-        Visible = false,
-        Parent = frame,
-    })
-    Corner(bar, 2)
+    Corner(button, 6)
+    local stroke = Stroke(button)
+    local padding = Pad(button, 0, 12, 0, 12)
 
     local iconLabel = Create("ImageLabel", {
         Name = "Icon",
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 12, 0.5, 0),
-        Size = UDim2.fromOffset(16, 16),
-        Parent = frame,
-    })
-
-    local label = Label({
-        Name = "Title",
-        Font = F.Medium,
-        Text = title,
-        Parent = frame,
-    })
-
-    local button = Create("TextButton", {
-        Name = "Hit",
-        BackgroundTransparency = 1,
-        Text = "",
-        Size = UDim2.fromScale(1, 1),
-        ZIndex = 3,
-        Parent = frame,
+        Position = UDim2.new(0, 10, 0.5, 0),
+        Size = UDim2.fromOffset(14, 14),
+        Visible = false,
+        Parent = button,
     })
 
     local function layout(hasIcon)
         iconLabel.Visible = hasIcon
-        label.Position = UDim2.fromOffset(hasIcon and 36 or 14, 0)
-        label.Size = UDim2.new(1, -(hasIcon and 44 or 22), 1, 0)
+        padding.PaddingLeft = UDim.new(0, hasIcon and 32 or 12)
     end
-
     layout(icon ~= nil and ApplyIcon(iconLabel, icon))
 
     local function render(animate)
         local theme = self._theme
-        Tween(frame, { BackgroundTransparency = item.active and 0 or (item.hover and 0.55 or 1) }, animate)
-        local color = (item.active or item.hover) and theme.Text or theme.TextDim
-        label.TextColor3 = color
+        local lit = item.active or item.hover
+        local color = lit and theme.Text or theme.TextDim
+        Tween(button, {
+            BackgroundTransparency = lit and 0 or 1,
+            BackgroundColor3 = item.active and theme.Element or theme.RowHover,
+            TextColor3 = color,
+        }, animate)
+        Tween(stroke, {
+            Transparency = item.active and 0 or 1,
+            Color = theme.Border,
+        }, animate)
         iconLabel.ImageColor3 = color
-        bar.Visible = item.active
     end
-
-    self:_style(frame, function(theme)
-        frame.BackgroundColor3 = theme.SurfaceHover
-        bar.BackgroundColor3 = theme.Accent
+    self:_style(button, function()
         render(false)
     end)
 
@@ -753,15 +753,13 @@ function Window:_makeNavItem(parent, title, icon)
         render(true)
     end)
 
-    item.frame = frame
     item.button = button
-
     function item.SetActive(value)
         item.active = value
         render(true)
     end
     function item.SetTitle(text)
-        label.Text = text
+        button.Text = text
     end
     function item.SetIcon(newIcon)
         layout(ApplyIcon(iconLabel, newIcon))
@@ -770,7 +768,7 @@ function Window:_makeNavItem(parent, title, icon)
     return item
 end
 
-function Window:_newPage()
+function Window:_buildPage()
     local tab = setmetatable({}, Tab)
     tab._window = self
     tab._categories = {}
@@ -781,55 +779,55 @@ function Window:_newPage()
         Active = true,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        Size = UDim2.fromScale(1, 1),
-        CanvasSize = UDim2.new(),
         AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        CanvasSize = UDim2.new(),
         ScrollBarThickness = 3,
         ScrollingDirection = Enum.ScrollingDirection.Y,
+        Size = UDim2.fromScale(1, 1),
         Visible = false,
-        Parent = self._content,
+        Parent = self._tabHolder,
     })
-    Pad(page, 12, 14, 12, 12)
+    Pad(page, 2, 8, 8, 2)
     self:_style(page, function(theme)
-        page.ScrollBarImageColor3 = theme.BorderHover
+        page.ScrollBarImageColor3 = theme.Border
     end)
 
     local columns = Create("Frame", {
         Name = "Columns",
+        AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        AutomaticSize = Enum.AutomaticSize.Y,
         Size = UDim2.new(1, 0, 0, 0),
         Parent = page,
     })
     Create("UIListLayout", {
-        Padding = UDim.new(0, 10),
         FillDirection = Enum.FillDirection.Horizontal,
+        Padding = UDim.new(0, 10),
         SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = columns,
     })
 
-    local function makeColumn(order)
-        local column = Create("Frame", {
+    local function column(order)
+        local frame = Create("Frame", {
             Name = "Column",
+            AutomaticSize = Enum.AutomaticSize.Y,
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
-            AutomaticSize = Enum.AutomaticSize.Y,
-            Size = UDim2.new(0.5, -5, 0, 0),
             LayoutOrder = order,
+            Size = UDim2.new(0.5, -5, 0, 0),
             Parent = columns,
         })
         Create("UIListLayout", {
             Padding = UDim.new(0, 10),
             SortOrder = Enum.SortOrder.LayoutOrder,
-            Parent = column,
+            Parent = frame,
         })
-        return column
+        return frame
     end
 
     tab.Root = page
-    tab._left = makeColumn(1)
-    tab._right = makeColumn(2)
+    tab.Section1 = column(1)
+    tab.Section2 = column(2)
 
     return tab
 end
@@ -841,7 +839,7 @@ function Window:_refreshPages()
         tab._nav.SetActive(on)
     end
     self._settingsTab.Root.Visible = self._settingsOpen
-    self._settingsNav.SetActive(self._settingsOpen)
+    self._settingsButtonRender(true)
     self:_runSearch()
 end
 
@@ -857,9 +855,8 @@ function Window:AddTab(config)
         config = { Title = config }
     end
 
-    local tab = self:_newPage()
-    tab._nav = self:_makeNavItem(self._navList, config.Title or "Tab", config.Icon)
-    tab._nav.frame.LayoutOrder = #self._tabs + 1
+    local tab = self:_buildPage()
+    tab._nav = self:_makeTabButton(config.Title or "Tab", config.Icon)
     tab._nav.button.MouseButton1Click:Connect(function()
         self:SelectTab(tab)
     end)
@@ -877,36 +874,6 @@ function Window:SetTitle(text)
     self.TitleLabel.Text = text
 end
 
---========================================================================--
--- TAB
---========================================================================--
-
-function Tab:_relayout()
-    local left, right = 0, 0
-    for _, category in ipairs(self._categories) do
-        if category._side == "Right" then
-            right += 1
-        else
-            left += 1
-        end
-    end
-
-    if right == 0 then
-        self._left.Visible = true
-        self._right.Visible = false
-        self._left.Size = UDim2.new(1, 0, 0, 0)
-    elseif left == 0 then
-        self._left.Visible = false
-        self._right.Visible = true
-        self._right.Size = UDim2.new(1, 0, 0, 0)
-    else
-        self._left.Visible = true
-        self._right.Visible = true
-        self._left.Size = UDim2.new(0.5, -5, 0, 0)
-        self._right.Size = UDim2.new(0.5, -5, 0, 0)
-    end
-end
-
 function Tab:SetTitle(text)
     if self._nav then
         self._nav.SetTitle(text)
@@ -919,6 +886,10 @@ function Tab:SetIcon(icon)
     end
 end
 
+--========================================================================--
+-- TAB: CATEGORY
+--========================================================================--
+
 function Tab:AddCategory(config)
     config = config or {}
     if type(config) == "string" then
@@ -927,7 +898,7 @@ function Tab:AddCategory(config)
 
     local window = self._window
     local side = config.Side == "Right" and "Right" or "Left"
-    local column = side == "Right" and self._right or self._left
+    local column = side == "Right" and self.Section2 or self.Section1
 
     local category = setmetatable({}, Category)
     category._window = window
@@ -943,13 +914,13 @@ function Tab:AddCategory(config)
 
     local root = Create("Frame", {
         Name = "Category",
-        BorderSizePixel = 0,
         AutomaticSize = Enum.AutomaticSize.Y,
-        Size = UDim2.new(1, 0, 0, 0),
+        BorderSizePixel = 0,
         LayoutOrder = self._order,
+        Size = UDim2.new(1, 0, 0, 0),
         Parent = column,
     })
-    Corner(root, 6)
+    Corner(root, 8)
     local rootStroke = Stroke(root)
     window:_style(root, function(theme)
         root.BackgroundColor3 = theme.Surface
@@ -957,30 +928,55 @@ function Tab:AddCategory(config)
     end)
     Create("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Parent = root })
 
-    local header = Create("TextButton", {
+    -- header: tamamen yuvarlak (kapaliyken) / alt koseleri duz (aciksken, fill ile)
+    local header = Create("Frame", {
         Name = "Header",
-        BackgroundTransparency = 1,
-        Text = "",
-        Size = UDim2.new(1, 0, 0, 32),
+        BorderSizePixel = 0,
         LayoutOrder = 1,
+        Size = UDim2.new(1, 0, 0, 36),
         Parent = root,
     })
+    Corner(header, 8)
+    local headerFill = Create("Frame", {
+        Name = "Fill",
+        AnchorPoint = Vector2.new(0, 1),
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 0, 1, 0),
+        Size = UDim2.new(1, 0, 0, 8),
+        Parent = header,
+    })
+    window:_style(header, function(theme)
+        header.BackgroundColor3 = theme.Header
+        headerFill.BackgroundColor3 = theme.Header
+    end)
 
     local iconLabel = Create("ImageLabel", {
         Name = "Icon",
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
         Position = UDim2.new(0, 12, 0.5, 0),
-        Size = UDim2.fromOffset(14, 14),
+        Size = UDim2.fromOffset(16, 16),
         Visible = false,
         Parent = header,
     })
-    window:_paint(iconLabel, "ImageColor3", "TextDim")
+    window:_paint(iconLabel, "ImageColor3", "Text")
+
+    local iconSeparator = Create("Frame", {
+        Name = "IconSeparator",
+        AnchorPoint = Vector2.new(0, 0.5),
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 36, 0.5, 0),
+        Size = UDim2.fromOffset(1, 14),
+        Visible = false,
+        Parent = header,
+    })
+    window:_paint(iconSeparator, "BackgroundColor3", "Border")
 
     local titleLabel = Label({
         Name = "Title",
-        Font = F.Semi,
+        Font = F.Medium,
         Text = category._title,
+        TextSize = 13,
         Parent = header,
     })
     window:_paint(titleLabel, "TextColor3", "Text")
@@ -994,51 +990,48 @@ function Tab:AddCategory(config)
 
     local function layoutHeader(hasIcon)
         iconLabel.Visible = hasIcon
-        titleLabel.Position = UDim2.fromOffset(hasIcon and 34 or 12, 0)
-        titleLabel.Size = UDim2.new(1, -((hasIcon and 34 or 12) + 34), 1, 0)
+        iconSeparator.Visible = hasIcon
+        local x = hasIcon and 48 or 12
+        titleLabel.Position = UDim2.fromOffset(x, 0)
+        titleLabel.Size = UDim2.new(1, -(x + 34), 1, 0)
     end
     layoutHeader(config.Icon ~= nil and ApplyIcon(iconLabel, config.Icon))
 
-    local divider = Create("Frame", {
-        Name = "Divider",
-        BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, 1),
-        LayoutOrder = 2,
-        Parent = root,
+    local headerHit = Create("TextButton", {
+        Name = "Hit",
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        Text = "",
+        ZIndex = 3,
+        Parent = header,
     })
-    window:_paint(divider, "BackgroundColor3", "Border")
 
     local body = Create("Frame", {
         Name = "Body",
+        AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        AutomaticSize = Enum.AutomaticSize.Y,
+        LayoutOrder = 2,
         Size = UDim2.new(1, 0, 0, 0),
-        LayoutOrder = 3,
         Parent = root,
     })
-    Pad(body, 6)
-    Create("UIListLayout", {
-        Padding = UDim.new(0, 2),
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = body,
-    })
+    Pad(body, 0, 0, 4, 0)
+    Create("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Parent = body })
 
     category.Root = root
     category.Header = header
     category.Body = body
-    category._divider = divider
+    category._headerFill = headerFill
     category._chevron = chevron
     category._titleLabel = titleLabel
     category._iconLabel = iconLabel
     category._layoutHeader = layoutHeader
 
-    header.MouseButton1Click:Connect(function()
+    headerHit.MouseButton1Click:Connect(function()
         category:SetCollapsed(not category._collapsed)
     end)
 
     table.insert(self._categories, category)
-    self:_relayout()
     category:_refreshBody(false, false)
 
     return category
@@ -1056,7 +1049,7 @@ end
 function Category:_refreshBody(forceOpen, animate)
     local open = (not self._collapsed) or forceOpen
     self.Body.Visible = open
-    self._divider.Visible = open
+    self._headerFill.Visible = open
     Tween(self._chevron, { Rotation = open and 0 or -90 }, animate)
 end
 
@@ -1080,13 +1073,12 @@ function Category:SetVisible(visible)
     self._window:_runSearch()
 end
 
--- v2 uyumlulugu: kilit ozelligi kaldirildi, cagrilar hata vermesin diye bos birakildi
+-- v2.0 uyumlulugu: kilit ozelligi kaldirildi, eski cagrilar hata vermesin diye bos
 function Category:SetLocked() end
 
 function Category:Destroy()
     removeValue(self._tab._categories, self)
     self.Root:Destroy()
-    self._tab:_relayout()
 end
 
 function Category:_register(api, info)
@@ -1142,36 +1134,53 @@ function Category:_register(api, info)
 end
 
 --========================================================================--
--- ROW BUILDER (toggle / slider / input / keybind / dropdown / colorpicker ortak)
+-- ROW BUILDERS
 --========================================================================--
 
+-- Kartin icindeki her satir: ustte 1px ayirici cizgi, hover'da hafif arka plan
+local function BuildHolder(window, parent, height)
+    local holder = Create("Frame", {
+        Name = "Holder",
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, height),
+        Parent = parent,
+    })
+    window:_paint(holder, "BackgroundColor3", "RowHover")
+
+    local divider = Create("Frame", {
+        Name = "Divider",
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 1),
+        ZIndex = 2,
+        Parent = holder,
+    })
+    window:_paint(divider, "BackgroundColor3", "Divider")
+
+    return holder
+end
+
+-- reserve: sag tarafta kontrole ayrilan genislik, extra: kontrol icin ek yukseklik (stacked bilesenler)
 local function BuildRow(window, parent, title, description, reserve, extra)
     extra = extra or 0
 
-    local row = Create("Frame", {
-        Name = "Row",
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, 30),
-        Parent = parent,
-    })
-    Corner(row, 5)
-    window:_paint(row, "BackgroundColor3", "SurfaceHover")
+    local row = BuildHolder(window, parent, 32)
 
     local titleLabel = Label({
         Name = "Title",
         Font = F.Medium,
+        Size = UDim2.new(1, -(reserve + 20), 0, 16),
         Text = title,
-        Size = UDim2.new(1, -(reserve + 16), 0, 16),
+        TextSize = 13,
         Parent = row,
     })
     window:_paint(titleLabel, "TextColor3", "Text")
 
     local descLabel = Label({
         Name = "Description",
+        Size = UDim2.new(1, -(reserve + 20), 0, 14),
         Text = description or "",
         TextSize = 11,
-        Size = UDim2.new(1, -(reserve + 16), 0, 14),
         Parent = row,
     })
     window:_paint(descLabel, "TextColor3", "TextDim")
@@ -1181,18 +1190,18 @@ local function BuildRow(window, parent, title, description, reserve, extra)
 
     function obj.layout()
         local hasDesc = descLabel.Text ~= ""
-        row.Size = UDim2.new(1, 0, 0, (hasDesc and 42 or 30) + extra)
+        row.Size = UDim2.new(1, 0, 0, (hasDesc and 46 or 32) + extra)
 
         if hasDesc or extra > 0 then
             titleLabel.AnchorPoint = Vector2.new(0, 0)
-            titleLabel.Position = UDim2.fromOffset(8, hasDesc and 6 or 7)
+            titleLabel.Position = UDim2.fromOffset(10, 8)
         else
             titleLabel.AnchorPoint = Vector2.new(0, 0.5)
-            titleLabel.Position = UDim2.new(0, 8, 0.5, 0)
+            titleLabel.Position = UDim2.new(0, 10, 0.5, 0)
         end
 
         descLabel.Visible = hasDesc
-        descLabel.Position = UDim2.fromOffset(8, 22)
+        descLabel.Position = UDim2.fromOffset(10, 25)
 
         if obj.onLayout then
             obj.onLayout(hasDesc)
@@ -1200,7 +1209,7 @@ local function BuildRow(window, parent, title, description, reserve, extra)
     end
     obj.layout()
 
-    -- Hover sayaci: ust uste binen overlay'lerde flicker olmasin
+    -- hover sayaci: ust uste binen overlay'lerde flicker olmasin
     function obj.watch(guiObject)
         guiObject.MouseEnter:Connect(function()
             hoverCount += 1
@@ -1242,46 +1251,62 @@ function Category:AddButton(config)
     local style = config.Style
     local hasDesc = config.Description ~= nil and config.Description ~= ""
 
+    local holder = BuildHolder(window, self.Body, hasDesc and 56 or 42)
+
     local button = Create("TextButton", {
         Name = "Button",
         BorderSizePixel = 0,
+        Position = UDim2.fromOffset(10, 7),
+        Size = UDim2.new(1, -20, 1, -14),
         Text = "",
-        Size = UDim2.new(1, 0, 0, hasDesc and 42 or 30),
-        Parent = self.Body,
+        Parent = holder,
     })
-    Corner(button, 5)
+    Corner(button, 6)
     local stroke = Stroke(button)
 
     local titleLabel = Label({
         Name = "Title",
         Font = F.Medium,
         Text = config.Title or "Button",
+        TextSize = 12,
         Parent = button,
     })
     local descLabel = Label({
         Name = "Description",
+        Position = UDim2.fromOffset(10, 20),
+        Size = UDim2.new(1, -20, 0, 14),
         Text = config.Description or "",
         TextSize = 11,
-        Position = UDim2.fromOffset(10, 22),
-        Size = UDim2.new(1, -20, 0, 14),
-        Visible = hasDesc,
         Parent = button,
     })
 
+    local iconLabel = Create("ImageLabel", {
+        Name = "Icon",
+        AnchorPoint = Vector2.new(1, 0.5),
+        BackgroundTransparency = 1,
+        Position = UDim2.new(1, -10, 0.5, 0),
+        Size = UDim2.fromOffset(16, 16),
+        Visible = false,
+        Parent = button,
+    })
+    local hasIcon = config.Icon ~= nil and ApplyIcon(iconLabel, config.Icon)
+    iconLabel.Visible = hasIcon
+
     local function layout()
         local desc = descLabel.Text ~= ""
-        button.Size = UDim2.new(1, 0, 0, desc and 42 or 30)
+        holder.Size = UDim2.new(1, 0, 0, desc and 56 or 42)
         descLabel.Visible = desc
+        local rightPad = hasIcon and 34 or 20
         if desc then
             titleLabel.AnchorPoint = Vector2.new(0, 0)
-            titleLabel.Position = UDim2.fromOffset(10, 6)
-            titleLabel.Size = UDim2.new(1, -20, 0, 16)
+            titleLabel.Position = UDim2.fromOffset(10, 5)
+            titleLabel.Size = UDim2.new(1, -rightPad, 0, 16)
             titleLabel.TextXAlignment = Enum.TextXAlignment.Left
         else
             titleLabel.AnchorPoint = Vector2.new(0, 0.5)
             titleLabel.Position = UDim2.new(0, 10, 0.5, 0)
-            titleLabel.Size = UDim2.new(1, -20, 0, 16)
-            titleLabel.TextXAlignment = Enum.TextXAlignment.Center
+            titleLabel.Size = UDim2.new(1, -rightPad, 0, 16)
+            titleLabel.TextXAlignment = hasIcon and Enum.TextXAlignment.Left or Enum.TextXAlignment.Center
         end
     end
     layout()
@@ -1295,19 +1320,20 @@ function Category:AddButton(config)
             bg = theme.Accent
             border = theme.Accent
             text = theme.AccentText
-            if hover then bg = bg:Lerp(Color3.new(1, 1, 1), 0.12) end
+            if hover then bg = bg:Lerp(Color3.new(1, 1, 1), 0.1) end
             if down then bg = bg:Lerp(Color3.new(0, 0, 0), 0.15) end
         else
-            bg = theme.Elevated
+            bg = theme.Element
             border = theme.Border
             text = style == "Danger" and theme.Danger or theme.Text
-            if hover then bg = theme.SurfaceHover; border = theme.BorderHover end
-            if down then bg = theme.Background end
+            if hover then bg = theme.ElementHover end
+            if down then bg = theme.Surface end
         end
         Tween(button, { BackgroundColor3 = bg }, animate)
         Tween(stroke, { Color = border }, animate)
         titleLabel.TextColor3 = text
         descLabel.TextColor3 = style == "Primary" and text or theme.TextDim
+        iconLabel.ImageColor3 = text
     end
     window:_style(button, function()
         render(false)
@@ -1335,9 +1361,14 @@ function Category:AddButton(config)
         api._searchDescription = text or ""
         layout()
     end
+    function api:SetIcon(icon)
+        hasIcon = ApplyIcon(iconLabel, icon)
+        iconLabel.Visible = hasIcon
+        layout()
+    end
 
     return self:_register(api, {
-        holder = button,
+        holder = holder,
         title = config.Title or "Button",
         description = config.Description,
     })
@@ -1356,13 +1387,13 @@ function Category:AddToggle(config)
     config = config or {}
     local window = self._window
 
-    local row = BuildRow(window, self.Body, config.Title or "Toggle", config.Description, 44)
+    local row = BuildRow(window, self.Body, config.Title or "Toggle", config.Description, 40)
 
     local track = Create("Frame", {
         Name = "Switch",
         AnchorPoint = Vector2.new(1, 0.5),
         BorderSizePixel = 0,
-        Position = UDim2.new(1, -8, 0.5, 0),
+        Position = UDim2.new(1, -10, 0.5, 0),
         Size = UDim2.fromOffset(30, 16),
         Parent = row.Row,
     })
@@ -1393,8 +1424,8 @@ function Category:AddToggle(config)
 
     local function render(animate)
         local theme = window._theme
-        Tween(track, { BackgroundColor3 = state and theme.Accent or theme.Elevated }, animate)
-        Tween(trackStroke, { Color = state and theme.Accent or theme.BorderHover }, animate)
+        Tween(track, { BackgroundColor3 = state and theme.Accent or theme.Element }, animate)
+        Tween(trackStroke, { Color = state and theme.Accent or theme.Border }, animate)
         Tween(knob, {
             Position = state and UDim2.new(0, 16, 0.5, 0) or UDim2.new(0, 2, 0.5, 0),
             BackgroundColor3 = state and Color3.new(1, 1, 1) or theme.TextDim,
@@ -1495,13 +1526,13 @@ function Category:AddSlider(config)
     local decimals = string.match(tostring(increment), "%.(%d+)")
     local precision = decimals and math.min(#decimals, 6) or 0
 
-    local row = BuildRow(window, self.Body, config.Title or "Slider", config.Description, 72, 16)
+    local row = BuildRow(window, self.Body, config.Title or "Slider", config.Description, 70, 18)
 
     local valueLabel = Label({
         Name = "Value",
         AnchorPoint = Vector2.new(1, 0),
         AutomaticSize = Enum.AutomaticSize.X,
-        Font = F.Mono,
+        Position = UDim2.new(1, -10, 0, 8),
         Size = UDim2.fromOffset(0, 16),
         TextSize = 11,
         TextTruncate = Enum.TextTruncate.None,
@@ -1510,17 +1541,12 @@ function Category:AddSlider(config)
     })
     window:_paint(valueLabel, "TextColor3", "TextDim")
 
-    row.onLayout = function(hasDesc)
-        valueLabel.Position = UDim2.new(1, -8, 0, hasDesc and 6 or 7)
-    end
-    row.layout()
-
     local track = Create("Frame", {
         Name = "Track",
         AnchorPoint = Vector2.new(0, 1),
         BorderSizePixel = 0,
-        Position = UDim2.new(0, 8, 1, -10),
-        Size = UDim2.new(1, -16, 0, 4),
+        Position = UDim2.new(0, 10, 1, -13),
+        Size = UDim2.new(1, -20, 0, 4),
         Parent = row.Row,
     })
     Corner(track, 2)
@@ -1537,23 +1563,25 @@ function Category:AddSlider(config)
         BackgroundColor3 = Color3.new(1, 1, 1),
         BorderSizePixel = 0,
         Position = UDim2.new(0, 0, 0.5, 0),
-        Size = UDim2.fromOffset(10, 10),
+        Size = UDim2.fromOffset(12, 12),
         ZIndex = 2,
         Parent = track,
     })
-    Corner(knob, 5)
+    Corner(knob, 6)
+    local knobStroke = Stroke(knob)
     window:_style(track, function(theme)
-        track.BackgroundColor3 = theme.Border
+        track.BackgroundColor3 = theme.Element
         fill.BackgroundColor3 = theme.Accent
+        knobStroke.Color = theme.Border
     end)
 
     local hit = Create("TextButton", {
         Name = "Hit",
         AnchorPoint = Vector2.new(0, 1),
         BackgroundTransparency = 1,
+        Position = UDim2.new(0, 4, 1, -4),
+        Size = UDim2.new(1, -8, 0, 22),
         Text = "",
-        Position = UDim2.new(0, 4, 1, -2),
-        Size = UDim2.new(1, -8, 0, 20),
         ZIndex = 3,
         Parent = row.Row,
     })
@@ -1697,20 +1725,19 @@ end
 function Category:AddInput(config)
     config = config or {}
     local window = self._window
-    local boxWidth = config.Width or 120
 
-    local row = BuildRow(window, self.Body, config.Title or "Input", config.Description, boxWidth + 8)
+    local row = BuildRow(window, self.Body, config.Title or "Input", config.Description, 0, 32)
 
     local box = Create("Frame", {
         Name = "Box",
-        AnchorPoint = Vector2.new(1, 0.5),
+        AnchorPoint = Vector2.new(0, 1),
         BorderSizePixel = 0,
         ClipsDescendants = true,
-        Position = UDim2.new(1, -8, 0.5, 0),
-        Size = UDim2.fromOffset(boxWidth, 22),
+        Position = UDim2.new(0, 10, 1, -9),
+        Size = UDim2.new(1, -20, 0, 26),
         Parent = row.Row,
     })
-    Corner(box, 5)
+    Corner(box, 6)
     local boxStroke = Stroke(box)
 
     local textBox = Create("TextBox", {
@@ -1719,8 +1746,8 @@ function Category:AddInput(config)
         ClearTextOnFocus = config.ClearOnFocus == true,
         Font = F.Regular,
         PlaceholderText = config.Placeholder or "",
-        Position = UDim2.fromOffset(6, 0),
-        Size = UDim2.new(1, -12, 1, 0),
+        Position = UDim2.fromOffset(8, 0),
+        Size = UDim2.new(1, -16, 1, 0),
         Text = config.Default or "",
         TextSize = 12,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -1728,8 +1755,8 @@ function Category:AddInput(config)
     })
 
     window:_style(box, function(theme)
-        box.BackgroundColor3 = theme.Elevated
-        boxStroke.Color = textBox:IsFocused() and theme.Accent or theme.Border
+        box.BackgroundColor3 = theme.Element
+        boxStroke.Color = textBox:IsFocused() and theme.Accent or theme.Element
         textBox.TextColor3 = theme.Text
         textBox.PlaceholderColor3 = theme.TextMuted
     end)
@@ -1738,7 +1765,7 @@ function Category:AddInput(config)
         Tween(boxStroke, { Color = window._theme.Accent })
     end)
     textBox.FocusLost:Connect(function()
-        Tween(boxStroke, { Color = window._theme.Border })
+        Tween(boxStroke, { Color = window._theme.Element })
         if config.Callback then
             task.spawn(config.Callback, textBox.Text)
         end
@@ -1782,7 +1809,7 @@ function Category:AddKeybind(config)
     config = config or {}
     local window = self._window
 
-    local row = BuildRow(window, self.Body, config.Title or "Keybind", config.Description, 72)
+    local row = BuildRow(window, self.Body, config.Title or "Keybind", config.Description, 70)
 
     local chip = Create("TextButton", {
         Name = "Key",
@@ -1790,7 +1817,7 @@ function Category:AddKeybind(config)
         AutomaticSize = Enum.AutomaticSize.X,
         BorderSizePixel = 0,
         Font = F.Mono,
-        Position = UDim2.new(1, -8, 0.5, 0),
+        Position = UDim2.new(1, -10, 0.5, 0),
         Size = UDim2.fromOffset(0, 22),
         Text = "",
         TextSize = 11,
@@ -1812,7 +1839,7 @@ function Category:AddKeybind(config)
         local theme = window._theme
         chip.Text = listening and "..." or keyLabel(currentKey)
         chip.TextColor3 = listening and theme.Accent or theme.TextDim
-        chip.BackgroundColor3 = theme.Elevated
+        chip.BackgroundColor3 = theme.Element
         chipStroke.Color = listening and theme.Accent or theme.Border
     end
     window:_style(chip, render)
@@ -1928,44 +1955,39 @@ function Category:AddDropdown(config)
 
     local holder = Create("Frame", {
         Name = "Dropdown",
+        AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        AutomaticSize = Enum.AutomaticSize.Y,
         Size = UDim2.new(1, 0, 0, 0),
         Parent = self.Body,
     })
-    Create("UIListLayout", {
-        Padding = UDim.new(0, 4),
-        HorizontalAlignment = Enum.HorizontalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = holder,
-    })
+    Create("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Parent = holder })
 
-    local row = BuildRow(window, holder, config.Title or "Dropdown", config.Description, 138)
+    local row = BuildRow(window, holder, config.Title or "Dropdown", config.Description, 0, 32)
     row.Row.LayoutOrder = 1
 
     local box = Create("Frame", {
         Name = "Value",
-        AnchorPoint = Vector2.new(1, 0.5),
+        AnchorPoint = Vector2.new(0, 1),
         BorderSizePixel = 0,
-        Position = UDim2.new(1, -8, 0.5, 0),
-        Size = UDim2.fromOffset(122, 22),
+        Position = UDim2.new(0, 10, 1, -9),
+        Size = UDim2.new(1, -20, 0, 26),
         Parent = row.Row,
     })
-    Corner(box, 5)
+    Corner(box, 6)
     local boxStroke = Stroke(box)
 
     local valueLabel = Label({
         Name = "Text",
         Position = UDim2.fromOffset(8, 0),
-        Size = UDim2.new(1, -26, 1, 0),
+        Size = UDim2.new(1, -30, 1, 0),
         TextSize = 12,
         Parent = box,
     })
 
     local chevron, paintChevron = Glyph.chevron(box, 8)
     chevron.AnchorPoint = Vector2.new(1, 0.5)
-    chevron.Position = UDim2.new(1, -8, 0.5, 0)
+    chevron.Position = UDim2.new(1, -10, 0.5, 0)
 
     local hit = Create("TextButton", {
         Name = "Hit",
@@ -1977,15 +1999,23 @@ function Category:AddDropdown(config)
     })
     row.watch(hit)
 
-    local panel = Create("Frame", {
-        Name = "Panel",
+    local panelWrap = Create("Frame", {
+        Name = "PanelWrap",
+        BackgroundTransparency = 1,
         BorderSizePixel = 0,
         LayoutOrder = 2,
-        Size = UDim2.new(1, -16, 0, 40),
+        Size = UDim2.new(1, 0, 0, 60),
         Visible = false,
         Parent = holder,
     })
-    Corner(panel, 5)
+    local panel = Create("Frame", {
+        Name = "Panel",
+        BorderSizePixel = 0,
+        Position = UDim2.fromOffset(10, 0),
+        Size = UDim2.new(1, -20, 1, -8),
+        Parent = panelWrap,
+    })
+    Corner(panel, 6)
     local panelStroke = Stroke(panel)
     Pad(panel, 4)
     Create("UIListLayout", {
@@ -2016,42 +2046,37 @@ function Category:AddDropdown(config)
     local scroller = Create("ScrollingFrame", {
         Name = "Options",
         Active = true,
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        AutomaticCanvasSize = Enum.AutomaticSize.Y,
         CanvasSize = UDim2.new(),
         LayoutOrder = 2,
         ScrollBarThickness = 2,
         Size = UDim2.new(1, 0, 0, 24),
         Parent = panel,
     })
-    Create("UIListLayout", {
-        Padding = UDim.new(0, 1),
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = scroller,
-    })
+    Create("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Parent = scroller })
 
     local emptyLabel = Label({
         Name = "Empty",
         LayoutOrder = 0,
         Size = UDim2.new(1, 0, 0, 24),
         Text = "No results",
-        TextSize = 12,
         TextXAlignment = Enum.TextXAlignment.Center,
         Visible = false,
         Parent = scroller,
     })
 
     window:_style(holder, function(theme)
-        box.BackgroundColor3 = theme.Elevated
-        boxStroke.Color = expanded and theme.Accent or theme.Border
+        box.BackgroundColor3 = theme.Element
+        boxStroke.Color = expanded and theme.Accent or theme.Element
         paintChevron(theme.TextDim)
-        panel.BackgroundColor3 = theme.Elevated
+        panel.BackgroundColor3 = theme.Window
         panelStroke.Color = theme.Border
-        scroller.ScrollBarImageColor3 = theme.BorderHover
+        scroller.ScrollBarImageColor3 = theme.Border
         emptyLabel.TextColor3 = theme.TextMuted
         if searchBox then
-            searchBox.BackgroundColor3 = theme.Surface
+            searchBox.BackgroundColor3 = theme.Element
             searchBox.TextColor3 = theme.Text
             searchBox.PlaceholderColor3 = theme.TextMuted
         end
@@ -2087,9 +2112,10 @@ function Category:AddDropdown(config)
                 count += 1
             end
         end
-        local height = count == 0 and 24 or math.min(count * 25 - 1, 125)
+        local height = count == 0 and 24 or math.min(count * 26, 130)
         scroller.Size = UDim2.new(1, 0, 0, height)
-        panel.Size = UDim2.new(1, -16, 0, 8 + (searchBox and 28 or 0) + height)
+        local panelHeight = 8 + (searchBox and 28 or 0) + height
+        panelWrap.Size = UDim2.new(1, 0, 0, panelHeight + 8)
         emptyLabel.Visible = count == 0
     end
 
@@ -2104,9 +2130,9 @@ function Category:AddDropdown(config)
     local function styleOption(option, animate)
         local theme = window._theme
         local isSelected = selected[option.value] == true
-        option.button.BackgroundColor3 = theme.SurfaceHover
+        option.button.BackgroundColor3 = theme.Element
         Tween(option.button, { BackgroundTransparency = option.hover and 0 or 1 }, animate)
-        option.label.TextColor3 = (isSelected or option.hover) and theme.Text or theme.TextDim
+        option.label.TextColor3 = isSelected and theme.Accent or (option.hover and theme.Text or theme.TextDim)
         option.dot.Visible = isSelected
         option.dot.BackgroundColor3 = theme.Accent
     end
@@ -2152,7 +2178,7 @@ function Category:AddDropdown(config)
                 BackgroundTransparency = 1,
                 BorderSizePixel = 0,
                 LayoutOrder = index,
-                Size = UDim2.new(1, 0, 0, 24),
+                Size = UDim2.new(1, 0, 0, 26),
                 Text = "",
                 Parent = scroller,
             })
@@ -2161,13 +2187,12 @@ function Category:AddDropdown(config)
                 Position = UDim2.fromOffset(8, 0),
                 Size = UDim2.new(1, -28, 1, 0),
                 Text = value,
-                TextSize = 12,
                 Parent = button,
             })
             local dot = Create("Frame", {
                 AnchorPoint = Vector2.new(1, 0.5),
                 BorderSizePixel = 0,
-                Position = UDim2.new(1, -8, 0.5, 0),
+                Position = UDim2.new(1, -9, 0.5, 0),
                 Size = UDim2.fromOffset(6, 6),
                 Visible = false,
                 Parent = button,
@@ -2205,12 +2230,12 @@ function Category:AddDropdown(config)
         if searchBox and state then
             searchBox.Text = ""
         end
-        panel.Visible = state
+        panelWrap.Visible = state
         if state then
             resize()
         end
         Tween(chevron, { Rotation = state and 180 or 0 })
-        Tween(boxStroke, { Color = state and window._theme.Accent or window._theme.Border })
+        Tween(boxStroke, { Color = state and window._theme.Accent or window._theme.Element })
     end
 
     hit.MouseButton1Click:Connect(function()
@@ -2309,18 +2334,13 @@ function Category:AddColorPicker(config)
 
     local holder = Create("Frame", {
         Name = "ColorPicker",
+        AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        AutomaticSize = Enum.AutomaticSize.Y,
         Size = UDim2.new(1, 0, 0, 0),
         Parent = self.Body,
     })
-    Create("UIListLayout", {
-        Padding = UDim.new(0, 4),
-        HorizontalAlignment = Enum.HorizontalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = holder,
-    })
+    Create("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Parent = holder })
 
     local row = BuildRow(window, holder, config.Title or "Color", config.Description, 44)
     row.Row.LayoutOrder = 1
@@ -2329,13 +2349,13 @@ function Category:AddColorPicker(config)
         Name = "Swatch",
         AnchorPoint = Vector2.new(1, 0.5),
         BorderSizePixel = 0,
-        Position = UDim2.new(1, -8, 0.5, 0),
+        Position = UDim2.new(1, -10, 0.5, 0),
         Size = UDim2.fromOffset(28, 16),
         Parent = row.Row,
     })
     Corner(swatch, 4)
     local swatchStroke = Stroke(swatch)
-    window:_paint(swatchStroke, "Color", "BorderHover")
+    window:_paint(swatchStroke, "Color", "Border")
 
     local hit = Create("TextButton", {
         Name = "Hit",
@@ -2352,9 +2372,17 @@ function Category:AddColorPicker(config)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         LayoutOrder = 2,
-        Size = UDim2.new(1, -16, 0, 170),
+        Size = UDim2.new(1, 0, 0, 178),
         Visible = false,
         Parent = holder,
+    })
+    local inner = Create("Frame", {
+        Name = "Inner",
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Position = UDim2.fromOffset(10, 2),
+        Size = UDim2.new(1, -20, 1, -10),
+        Parent = panel,
     })
 
     -- saturation / value alani
@@ -2363,16 +2391,16 @@ function Category:AddColorPicker(config)
         BorderSizePixel = 0,
         Size = UDim2.new(1, 0, 0, 110),
         Text = "",
-        Parent = panel,
+        Parent = inner,
     })
-    Corner(sv, 5)
+    Corner(sv, 6)
     local whiteOverlay = Create("Frame", {
         BackgroundColor3 = Color3.new(1, 1, 1),
         BorderSizePixel = 0,
         Size = UDim2.fromScale(1, 1),
         Parent = sv,
     })
-    Corner(whiteOverlay, 5)
+    Corner(whiteOverlay, 6)
     Create("UIGradient", {
         Transparency = NumberSequence.new({
             NumberSequenceKeypoint.new(0, 0),
@@ -2386,7 +2414,7 @@ function Category:AddColorPicker(config)
         Size = UDim2.fromScale(1, 1),
         Parent = sv,
     })
-    Corner(blackOverlay, 5)
+    Corner(blackOverlay, 6)
     Create("UIGradient", {
         Rotation = 90,
         Transparency = NumberSequence.new({
@@ -2407,8 +2435,8 @@ function Category:AddColorPicker(config)
     Corner(svKnob, 5)
     Create("UIStroke", {
         Color = Color3.new(0, 0, 0),
-        Transparency = 0.35,
         Thickness = 1,
+        Transparency = 0.4,
         Parent = svKnob,
     })
 
@@ -2420,7 +2448,7 @@ function Category:AddColorPicker(config)
         Position = UDim2.fromOffset(0, 120),
         Size = UDim2.new(1, 0, 0, 10),
         Text = "",
-        Parent = panel,
+        Parent = inner,
     })
     Corner(hueBar, 5)
     Create("UIGradient", {
@@ -2447,8 +2475,8 @@ function Category:AddColorPicker(config)
     Corner(hueKnob, 6)
     Create("UIStroke", {
         Color = Color3.new(0, 0, 0),
-        Transparency = 0.35,
         Thickness = 1,
+        Transparency = 0.4,
         Parent = hueKnob,
     })
 
@@ -2458,11 +2486,10 @@ function Category:AddColorPicker(config)
         BorderSizePixel = 0,
         ClipsDescendants = true,
         Position = UDim2.fromOffset(0, 142),
-        Size = UDim2.fromOffset(100, 22),
-        Parent = panel,
+        Size = UDim2.fromOffset(100, 24),
+        Parent = inner,
     })
-    Corner(hexBox, 5)
-    local hexStroke = Stroke(hexBox)
+    Corner(hexBox, 6)
     local hexInput = Create("TextBox", {
         Name = "Hex",
         BackgroundTransparency = 1,
@@ -2477,8 +2504,7 @@ function Category:AddColorPicker(config)
     })
 
     window:_style(panel, function(theme)
-        hexBox.BackgroundColor3 = theme.Elevated
-        hexStroke.Color = theme.Border
+        hexBox.BackgroundColor3 = theme.Element
         hexInput.TextColor3 = theme.Text
     end)
 
@@ -2619,59 +2645,24 @@ function Category:AddSeparator(config)
     local window = self._window
     local text = config.Text or ""
 
-    local holder = Create("Frame", {
-        Name = "Separator",
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, text ~= "" and 22 or 9),
-        Parent = self.Body,
-    })
-
-    local line = Create("Frame", {
-        Name = "Line",
-        AnchorPoint = Vector2.new(0, 0.5),
-        BorderSizePixel = 0,
-        Position = UDim2.new(0, 8, 0.5, 0),
-        Size = UDim2.new(1, -16, 0, 1),
-        Parent = holder,
-    })
-    window:_paint(line, "BackgroundColor3", "Border")
+    local holder = BuildHolder(window, self.Body, 26)
 
     local label = Label({
         Name = "Text",
         AnchorPoint = Vector2.new(0, 0.5),
-        AutomaticSize = Enum.AutomaticSize.X,
         Font = F.Semi,
-        Position = UDim2.new(0, 8, 0.5, 0),
-        Size = UDim2.fromOffset(0, 14),
+        Position = UDim2.new(0, 10, 0.5, 0),
+        Size = UDim2.new(1, -20, 0, 14),
         Text = string.upper(text),
         TextSize = 10,
-        TextTruncate = Enum.TextTruncate.None,
-        Visible = text ~= "",
         Parent = holder,
     })
     window:_paint(label, "TextColor3", "TextMuted")
 
-    local function relayout()
-        if label.Visible then
-            local width = label.AbsoluteSize.X
-            line.Position = UDim2.new(0, 16 + width, 0.5, 0)
-            line.Size = UDim2.new(1, -(24 + width), 0, 1)
-        else
-            line.Position = UDim2.new(0, 8, 0.5, 0)
-            line.Size = UDim2.new(1, -16, 0, 1)
-        end
-    end
-    label:GetPropertyChangedSignal("AbsoluteSize"):Connect(relayout)
-    relayout()
-
     local api = {}
     function api:SetText(newText)
         label.Text = string.upper(newText)
-        label.Visible = newText ~= ""
-        holder.Size = UDim2.new(1, 0, 0, newText ~= "" and 22 or 9)
         api._searchTitle = newText
-        relayout()
     end
 
     return self:_register(api, { holder = holder, title = text })
@@ -2686,18 +2677,21 @@ function Category:AddLabel(config)
     config = config or {}
     local window = self._window
 
+    local holder = BuildHolder(window, self.Body, 32)
+    holder.AutomaticSize = Enum.AutomaticSize.Y
+    holder.Size = UDim2.new(1, 0, 0, 0)
+
     local label = Label({
-        Name = "Label",
+        Name = "Text",
         AutomaticSize = Enum.AutomaticSize.Y,
         Size = UDim2.new(1, 0, 0, 0),
         Text = config.Text or "",
-        TextSize = 12,
         TextTruncate = Enum.TextTruncate.None,
         TextWrapped = true,
         TextYAlignment = Enum.TextYAlignment.Top,
-        Parent = self.Body,
+        Parent = holder,
     })
-    Pad(label, 6, 8)
+    Pad(label, 9, 10)
     window:_paint(label, "TextColor3", "TextDim")
 
     local api = {}
@@ -2709,7 +2703,7 @@ function Category:AddLabel(config)
         return label.Text
     end
 
-    return self:_register(api, { holder = label, title = config.Text or "" })
+    return self:_register(api, { holder = holder, title = config.Text or "" })
 end
 
 --========================================================================--
@@ -2737,9 +2731,9 @@ function Window:_ensureTooltip()
     Pad(tip, 5, 8)
     local tipStroke = Stroke(tip)
     self:_style(tip, function(theme)
-        tip.BackgroundColor3 = theme.Elevated
+        tip.BackgroundColor3 = theme.Element
         tip.TextColor3 = theme.Text
-        tipStroke.Color = theme.BorderHover
+        tipStroke.Color = theme.Border
     end)
 
     self._tooltip = tip
@@ -2748,9 +2742,9 @@ end
 
 function Window:AttachTooltip(guiObject, text)
     local tip = self:_ensureTooltip()
-    local lastX, lastY = 0, 0
 
-    local function place(x, y)
+    local function place()
+        local x, y = mouseXY()
         local viewport = self.ScreenGui.AbsoluteSize
         local width = tip.AbsoluteSize.X
         tip.Position = UDim2.fromOffset(
@@ -2759,8 +2753,7 @@ function Window:AttachTooltip(guiObject, text)
         )
     end
 
-    guiObject.MouseEnter:Connect(function(x, y)
-        lastX, lastY = x, y
+    guiObject.MouseEnter:Connect(function()
         self._tipToken += 1
         local token = self._tipToken
         task.delay(0.45, function()
@@ -2769,13 +2762,12 @@ function Window:AttachTooltip(guiObject, text)
             end
             tip.Text = text
             tip.Visible = true
-            place(lastX, lastY)
+            place()
         end)
     end)
-    guiObject.MouseMoved:Connect(function(x, y)
-        lastX, lastY = x, y
+    guiObject.MouseMoved:Connect(function()
         if tip.Visible then
-            place(x, y)
+            place()
         end
     end)
     guiObject.MouseLeave:Connect(function()
@@ -2810,15 +2802,15 @@ function Window:_ensureKeybindList()
         ZIndex = 50,
         Parent = self.ScreenGui,
     })
-    Corner(frame, 6)
-    Pad(frame, 8, 10)
+    Corner(frame, 8)
+    Pad(frame, 9, 12)
     local frameStroke = Stroke(frame)
     self:_style(frame, function(theme)
-        frame.BackgroundColor3 = theme.Sidebar
+        frame.BackgroundColor3 = theme.Surface
         frameStroke.Color = theme.Border
     end)
     Create("UIListLayout", {
-        Padding = UDim.new(0, 4),
+        Padding = UDim.new(0, 5),
         SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = frame,
     })
@@ -2826,7 +2818,7 @@ function Window:_ensureKeybindList()
     local header = Label({
         Name = "Header",
         AutomaticSize = Enum.AutomaticSize.X,
-        Font = F.Semi,
+        Font = F.Medium,
         LayoutOrder = 0,
         Size = UDim2.fromOffset(0, 16),
         Text = "Keybinds",
@@ -2872,7 +2864,6 @@ function Window:_refreshKeybindList()
             LayoutOrder = 1,
             Size = UDim2.fromOffset(0, 14),
             Text = entry.title,
-            TextSize = 12,
             TextTruncate = Enum.TextTruncate.None,
             Parent = row,
         })
@@ -2930,14 +2921,14 @@ function Window:Notify(config)
         BackgroundColor3 = theme.Surface,
         BorderSizePixel = 0,
         ClipsDescendants = true,
-        Position = UDim2.new(1, 40, 0, 0),
+        Position = UDim2.new(0, -300, 0, 0),
         Size = UDim2.new(1, 0, 0, 0),
         Parent = wrap,
     })
-    Corner(card, 6)
+    Corner(card, 8)
     Create("UIStroke", {
         ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-        Color = theme.BorderHover,
+        Color = theme.Border,
         Parent = card,
     })
 
@@ -2955,7 +2946,7 @@ function Window:Notify(config)
         local iconLabel = Create("ImageLabel", {
             BackgroundTransparency = 1,
             ImageColor3 = theme.Accent,
-            Position = UDim2.fromOffset(12, 12),
+            Position = UDim2.fromOffset(12, 11),
             Size = UDim2.fromOffset(16, 16),
             Parent = body,
         })
@@ -2972,11 +2963,12 @@ function Window:Notify(config)
 
     local title = Label({
         Name = "Title",
-        Font = F.Semi,
+        Font = F.Medium,
         LayoutOrder = 1,
         Size = UDim2.new(1, 0, 0, 16),
         Text = config.Title or "Notification",
         TextColor3 = theme.Text,
+        TextSize = 13,
         Parent = body,
     })
     local content = Label({
@@ -2986,7 +2978,6 @@ function Window:Notify(config)
         Size = UDim2.new(1, 0, 0, 0),
         Text = config.Content or "",
         TextColor3 = theme.TextDim,
-        TextSize = 12,
         TextTruncate = Enum.TextTruncate.None,
         TextWrapped = true,
         TextYAlignment = Enum.TextYAlignment.Top,
@@ -2999,8 +2990,8 @@ function Window:Notify(config)
         AnchorPoint = Vector2.new(0, 1),
         BackgroundColor3 = theme.Accent,
         BorderSizePixel = 0,
-        Position = UDim2.new(0, 10, 1, -4),
-        Size = UDim2.new(1, -20, 0, 2),
+        Position = UDim2.new(0, 12, 1, -5),
+        Size = UDim2.new(1, -24, 0, 2),
         Parent = card,
     })
     Corner(timer, 1)
@@ -3008,8 +2999,8 @@ function Window:Notify(config)
     local clickArea = Create("TextButton", {
         Name = "Click",
         BackgroundTransparency = 1,
-        Text = "",
         Size = UDim2.fromScale(1, 1),
+        Text = "",
         ZIndex = 5,
         Parent = card,
     })
@@ -3020,7 +3011,7 @@ function Window:Notify(config)
             return
         end
         dismissed = true
-        Tween(card, { Position = UDim2.new(1, 40, 0, 0) }, true, T_FAST)
+        Tween(card, { Position = UDim2.new(0, -300, 0, 0) }, true, T_FAST)
         task.delay(0.16, function()
             wrap:Destroy()
         end)
@@ -3082,7 +3073,7 @@ function Window:SetMinimized(state)
     local main = self.Main
     if state then
         self._restoreSize = main.Size
-        Tween(main, { Size = UDim2.new(main.Size.X.Scale, main.Size.X.Offset, 0, 36) }, true, T_MED)
+        Tween(main, { Size = UDim2.new(main.Size.X.Scale, main.Size.X.Offset, 0, TOPBAR_HEIGHT) }, true, T_MED)
     else
         Tween(main, { Size = self._restoreSize or main.Size }, true, T_MED)
     end
@@ -3101,7 +3092,10 @@ function Window:SetMaximized(state)
         self._restorePosition = main.Position
         self._restoreMaxSize = main.Size
         local viewport = self.ScreenGui.AbsoluteSize
-        Tween(main, { Position = UDim2.fromOffset(0, 0), Size = UDim2.fromOffset(viewport.X, viewport.Y) }, true, T_SLOW)
+        Tween(main, {
+            Position = UDim2.fromOffset(0, 0),
+            Size = UDim2.fromOffset(viewport.X, viewport.Y),
+        }, true, T_SLOW)
         self._mainCorner.CornerRadius = UDim.new(0, 0)
     else
         Tween(main, {
@@ -3297,16 +3291,14 @@ end
 
 function Window:_buildSettings()
     local tab = self._settingsTab
-    local pickers = {}
-    self._themePickers = pickers
+    local pickers = self._themePickers
 
     -- sol kolon
-    local appearance = tab:AddCategory({ Title = "Appearance", Side = "Left" })
-    appearance:AddDropdown({
+    local interface = tab:AddCategory({ Title = "Interface", Icon = "palette", Side = "Left" })
+    interface:AddDropdown({
         Title = "Theme",
-        Description = "Base color preset",
         Values = PRESET_ORDER,
-        Default = "Default",
+        Default = "Dark",
         Searchable = false,
         Callback = function(name)
             if name then
@@ -3314,26 +3306,40 @@ function Window:_buildSettings()
             end
         end,
     })
-    pickers.Accent = appearance:AddColorPicker({
-        Title = "Accent",
+    pickers.Accent = interface:AddColorPicker({
+        Title = "Accent color",
         Default = self._theme.Accent,
         Callback = function(color)
             self:SetAccent(color)
         end,
     })
-    appearance:AddToggle({
+    interface:AddToggle({
         Title = "Keybind list",
-        Description = "Show bound keys on screen",
         Callback = function(value)
             self:SetKeybindListVisible(value)
         end,
     })
+    self._toggleKeybind = interface:AddKeybind({
+        Title = "Toggle UI",
+        Default = Enum.KeyCode.RightShift,
+        Flag = "Nexo_ToggleKey",
+        Callback = function()
+            self:ToggleVisibility()
+        end,
+    })
+    interface:AddButton({
+        Title = "Unload UI",
+        Style = "Danger",
+        Callback = function()
+            self:UnloadGui()
+        end,
+    })
 
-    local custom = tab:AddCategory({ Title = "Custom colors", Side = "Left", Collapsed = true })
+    local custom = tab:AddCategory({ Title = "Custom colors", Icon = "brush", Side = "Left", Collapsed = true })
     for _, item in ipairs({
-        { "Background", "Content" },
-        { "Sidebar", "Window frame" },
+        { "Window", "Window" },
         { "Surface", "Cards" },
+        { "Element", "Controls" },
         { "Text", "Text" },
     }) do
         local key = item[1]
@@ -3345,7 +3351,6 @@ function Window:_buildSettings()
             end,
         })
     end
-    custom:AddSeparator({ Text = "Share" })
     local themeJson = custom:AddInput({ Title = "Theme JSON", Placeholder = "{...}" })
     custom:AddButton({
         Title = "Import theme",
@@ -3361,30 +3366,11 @@ function Window:_buildSettings()
     })
 
     -- sag kolon
-    local general = tab:AddCategory({ Title = "General", Side = "Right" })
-    general:AddKeybind({
-        Title = "Toggle UI",
-        Description = "Show or hide the window",
-        Default = Enum.KeyCode.RightShift,
-        Flag = "Nexo_ToggleKey",
-        Callback = function()
-            self:ToggleVisibility()
-        end,
-    })
-    self._toggleKeybind = general._components[#general._components]
-    general:AddButton({
-        Title = "Unload UI",
-        Style = "Danger",
-        Callback = function()
-            self:UnloadGui()
-        end,
-    })
-
-    local configs = tab:AddCategory({ Title = "Configs", Side = "Right" })
+    local configs = tab:AddCategory({ Title = "Configs", Icon = "save", Side = "Right" })
     local nameInput = configs:AddInput({ Title = "Name", Placeholder = "my-config" })
     local savedList
     savedList = configs:AddDropdown({
-        Title = "Saved",
+        Title = "Saved configs",
         Values = self:GetConfigs(),
         Searchable = false,
         Placeholder = "None",
@@ -3413,7 +3399,7 @@ function Window:_buildSettings()
         end,
     })
 
-    local transfer = tab:AddCategory({ Title = "Import / Export", Side = "Right", Collapsed = true })
+    local transfer = tab:AddCategory({ Title = "Import / Export", Icon = "download", Side = "Right", Collapsed = true })
     local configJson = transfer:AddInput({ Title = "Config JSON", Placeholder = "{...}" })
     transfer:AddButton({
         Title = "Import",
@@ -3439,10 +3425,11 @@ function Nexo.CreateWindow(config)
     local self = setmetatable({}, Window)
 
     local theme = {}
-    for key, value in pairs(Presets.Default) do
+    for key, value in pairs(Presets.Dark) do
         theme[key] = value
     end
-    local preset = config.Preset and Presets[config.Preset]
+    local presetName = config.Preset == "Default" and "Dark" or config.Preset
+    local preset = presetName and Presets[presetName]
     if preset then
         for key, value in pairs(preset) do
             theme[key] = value
@@ -3463,16 +3450,16 @@ function Nexo.CreateWindow(config)
     self._toggleGroups = {}
     self._keybindEntries = {}
     self._memoryConfigs = {}
+    self._themePickers = {}
     self._notifyOrder = 0
     self._tipToken = 0
-    self._themePickers = {}
     self._settingsOpen = false
     self._minimized = false
     self._maximized = false
 
     local guiParent = GetGuiParent()
 
-    -- bildirimler
+    -- bildirimler (sol alt)
     local notifyGui = Create("ScreenGui", {
         Name = "NexoNotify",
         DisplayOrder = 101,
@@ -3482,11 +3469,11 @@ function Nexo.CreateWindow(config)
     })
     local notifyHolder = Create("Frame", {
         Name = "Holder",
-        AnchorPoint = Vector2.new(1, 1),
+        AnchorPoint = Vector2.new(0, 1),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        Position = UDim2.new(1, -12, 1, -12),
-        Size = UDim2.new(0, 280, 1, -24),
+        Position = UDim2.new(0, 12, 1, -12),
+        Size = UDim2.new(0, 270, 1, -24),
         Parent = notifyGui,
     })
     Create("UIListLayout", {
@@ -3510,10 +3497,10 @@ function Nexo.CreateWindow(config)
 
     local camera = Workspace.CurrentCamera
     local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
-    local width = config.Size and config.Size.X.Offset > 0 and config.Size.X.Offset or 640
-    local height = config.Size and config.Size.Y.Offset > 0 and config.Size.Y.Offset or 420
+    local width = config.Size and config.Size.X.Offset > 0 and config.Size.X.Offset or 620
+    local height = config.Size and config.Size.Y.Offset > 0 and config.Size.Y.Offset or 540
     width = math.floor(math.clamp(width, 460, math.max(460, viewport.X - 40)))
-    height = math.floor(math.clamp(height, 300, math.max(300, viewport.Y - 80)))
+    height = math.floor(math.clamp(height, 320, math.max(320, viewport.Y - 60)))
 
     local main = Create("Frame", {
         Name = "Main",
@@ -3523,30 +3510,42 @@ function Nexo.CreateWindow(config)
         Size = UDim2.fromOffset(width, height),
         Parent = screenGui,
     })
-    local mainCorner = Corner(main, 8)
+    self._mainCorner = Corner(main, 8)
     local mainStroke = Stroke(main)
     self:_style(main, function(t)
-        main.BackgroundColor3 = t.Sidebar
+        main.BackgroundColor3 = t.Window
         mainStroke.Color = t.Border
     end)
     self.Main = main
-    self._mainCorner = mainCorner
 
-    -- topbar
+    --====================================================================--
+    -- Topbar
+    --====================================================================--
+
     local topbar = Create("Frame", {
         Name = "Topbar",
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, 36),
+        Size = UDim2.new(1, 0, 0, TOPBAR_HEIGHT),
         Parent = main,
     })
+
+    local topbarLine = Create("Frame", {
+        Name = "Line",
+        AnchorPoint = Vector2.new(0, 1),
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 0, 1, 0),
+        Size = UDim2.new(1, 0, 0, 1),
+        Parent = topbar,
+    })
+    self:_paint(topbarLine, "BackgroundColor3", "Divider")
 
     local dragArea = Create("Frame", {
         Name = "Drag",
         Active = true,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        Size = UDim2.new(1, -110, 1, 0),
+        Size = UDim2.new(1, -140, 1, 0),
         Parent = topbar,
     })
 
@@ -3554,20 +3553,21 @@ function Nexo.CreateWindow(config)
         Name = "Logo",
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 14, 0.5, 0),
+        Position = UDim2.new(0, 12, 0.5, 0),
         Size = UDim2.fromOffset(16, 16),
         Parent = dragArea,
     })
-    self:_paint(logo, "ImageColor3", "Accent")
+    self:_paint(logo, "ImageColor3", "Text")
     local hasLogo = config.Icon ~= nil and ApplyIcon(logo, config.Icon)
     logo.Visible = hasLogo
 
     local titleLabel = Label({
         Name = "Title",
-        Font = F.Semi,
-        Position = UDim2.fromOffset(hasLogo and 38 or 14, 0),
-        Size = UDim2.new(1, -(hasLogo and 38 or 14), 1, 0),
+        Font = F.Medium,
+        Position = UDim2.fromOffset(hasLogo and 36 or 14, 0),
+        Size = UDim2.new(1, -(hasLogo and 36 or 14), 1, 0),
         Text = config.Title or "Nexo",
+        TextSize = 13,
         Parent = dragArea,
     })
     self:_paint(titleLabel, "TextColor3", "Text")
@@ -3579,7 +3579,7 @@ function Nexo.CreateWindow(config)
         AutomaticSize = Enum.AutomaticSize.X,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        Position = UDim2.new(1, -6, 0.5, 0),
+        Position = UDim2.new(1, -8, 0.5, 0),
         Size = UDim2.fromOffset(0, 26),
         Parent = topbar,
     })
@@ -3590,66 +3590,125 @@ function Nexo.CreateWindow(config)
         Parent = controls,
     })
 
-    local function controlButton(kind, order, danger)
+    -- kontrol dugmesi: bos yuvarlak kutu, hover'da hafif arka plan
+    local function controlButton(order, danger, drawGlyph)
         local button = Create("TextButton", {
-            Name = kind,
+            Name = "Control",
             BackgroundTransparency = 1,
             LayoutOrder = order,
             Size = UDim2.fromOffset(30, 26),
             Text = "",
             Parent = controls,
         })
-        Corner(button, 5)
-        local _, paint = Glyph[kind](button, 10)
+        Corner(button, 6)
 
-        local hover = false
+        local state = { hover = false, active = false }
+        local paint = drawGlyph(button)
+
         local function render(animate)
             local t = self._theme
+            local lit = state.hover or state.active
             Tween(button, {
-                BackgroundTransparency = hover and 0 or 1,
-                BackgroundColor3 = (danger and hover) and t.Danger or t.SurfaceHover,
+                BackgroundTransparency = lit and 0 or 1,
+                BackgroundColor3 = (danger and state.hover) and t.Danger or t.Element,
             }, animate)
-            if danger and hover then
+            if danger and state.hover then
                 paint(Color3.new(1, 1, 1))
             else
-                paint(hover and t.Text or t.TextDim)
+                paint(lit and t.Text or t.TextDim)
             end
         end
         self:_style(button, function()
             render(false)
         end)
-        button.MouseEnter:Connect(function() hover = true; render(true) end)
-        button.MouseLeave:Connect(function() hover = false; render(true) end)
-        return button
+
+        button.MouseEnter:Connect(function() state.hover = true; render(true) end)
+        button.MouseLeave:Connect(function() state.hover = false; render(true) end)
+
+        return button, function(value)
+            state.active = value
+            render(true)
+        end
     end
 
-    local minimizeButton = controlButton("minimize", 1, false)
-    local maximizeButton = controlButton("maximize", 2, false)
-    local closeButton = controlButton("close", 3, true)
+    local settingsButton, setSettingsActive = controlButton(1, false, function(button)
+        local icon = Create("ImageLabel", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            BackgroundTransparency = 1,
+            Image = ResolveIcon(10734950309),
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromOffset(15, 15),
+            Parent = button,
+        })
+        return function(color)
+            icon.ImageColor3 = color
+        end
+    end)
+    local minimizeButton = controlButton(2, false, function(button)
+        local _, paint = Glyph.minimize(button, 10)
+        return paint
+    end)
+    local maximizeButton = controlButton(3, false, function(button)
+        local _, paint = Glyph.maximize(button, 10)
+        return paint
+    end)
+    local closeButton = controlButton(4, true, function(button)
+        local _, paint = Glyph.close(button, 10)
+        return paint
+    end)
 
-    -- sidebar
-    local sidebar = Create("Frame", {
-        Name = "Sidebar",
+    self._settingsButtonRender = function()
+        setSettingsActive(self._settingsOpen)
+    end
+
+    --====================================================================--
+    -- Govde: tab'lar + arama + sayfalar
+    --====================================================================--
+
+    local body = Create("Frame", {
+        Name = "Body",
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        Position = UDim2.fromOffset(0, 36),
-        Size = UDim2.new(0, 150, 1, -36),
+        Position = UDim2.fromOffset(0, TOPBAR_HEIGHT + 1),
+        Size = UDim2.new(1, 0, 1, -(TOPBAR_HEIGHT + 1)),
         Parent = main,
     })
+    Pad(body, 10)
+
+    local tabList = Create("ScrollingFrame", {
+        Name = "Tabs",
+        AutomaticCanvasSize = Enum.AutomaticSize.X,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        CanvasSize = UDim2.new(),
+        ScrollBarThickness = 0,
+        ScrollingDirection = Enum.ScrollingDirection.X,
+        Size = UDim2.new(1, -176, 0, 30),
+        Parent = body,
+    })
+    Create("UIListLayout", {
+        FillDirection = Enum.FillDirection.Horizontal,
+        Padding = UDim.new(0, 4),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        VerticalAlignment = Enum.VerticalAlignment.Center,
+        Parent = tabList,
+    })
+    self._tabList = tabList
 
     local searchBox = Create("Frame", {
         Name = "Search",
+        AnchorPoint = Vector2.new(1, 0),
         BorderSizePixel = 0,
-        Position = UDim2.fromOffset(10, 2),
-        Size = UDim2.new(1, -18, 0, 28),
-        Parent = sidebar,
+        Position = UDim2.new(1, 0, 0, 1),
+        Size = UDim2.fromOffset(168, 28),
+        Parent = body,
     })
     Corner(searchBox, 6)
     local searchStroke = Stroke(searchBox)
 
     local magnifier, paintMagnifier = Glyph.search(searchBox, 12)
     magnifier.AnchorPoint = Vector2.new(0, 0.5)
-    magnifier.Position = UDim2.new(0, 9, 0.5, 0)
+    magnifier.Position = UDim2.new(0, 10, 0.5, 0)
 
     local searchInput = Create("TextBox", {
         Name = "Input",
@@ -3657,8 +3716,8 @@ function Nexo.CreateWindow(config)
         ClearTextOnFocus = false,
         Font = F.Regular,
         PlaceholderText = "Search",
-        Position = UDim2.fromOffset(28, 0),
-        Size = UDim2.new(1, -46, 1, 0),
+        Position = UDim2.fromOffset(30, 0),
+        Size = UDim2.new(1, -50, 1, 0),
         Text = "",
         TextSize = 12,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -3678,8 +3737,8 @@ function Nexo.CreateWindow(config)
     local _, paintClear = Glyph.close(clearButton, 7)
 
     self:_style(searchBox, function(t)
-        searchBox.BackgroundColor3 = t.Elevated
-        searchStroke.Color = searchInput:IsFocused() and t.Accent or t.Border
+        searchBox.BackgroundColor3 = t.Element
+        searchStroke.Color = searchInput:IsFocused() and t.Accent or t.Element
         searchInput.TextColor3 = t.Text
         searchInput.PlaceholderColor3 = t.TextMuted
         paintMagnifier(t.TextMuted)
@@ -3690,7 +3749,7 @@ function Nexo.CreateWindow(config)
         Tween(searchStroke, { Color = self._theme.Accent })
     end)
     searchInput.FocusLost:Connect(function()
-        Tween(searchStroke, { Color = self._theme.Border })
+        Tween(searchStroke, { Color = self._theme.Element })
     end)
     searchInput:GetPropertyChangedSignal("Text"):Connect(function()
         self:_runSearch()
@@ -3702,71 +3761,27 @@ function Nexo.CreateWindow(config)
     self._searchInput = searchInput
     self._searchClear = clearButton
 
-    local navList = Create("ScrollingFrame", {
-        Name = "Tabs",
-        Active = true,
+    local tabHolder = Create("Frame", {
+        Name = "Pages",
         BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        AutomaticCanvasSize = Enum.AutomaticSize.Y,
-        CanvasSize = UDim2.new(),
-        Position = UDim2.fromOffset(0, 38),
-        ScrollBarThickness = 0,
-        Size = UDim2.new(1, 0, 1, -86),
-        Parent = sidebar,
-    })
-    Pad(navList, 4, 8)
-    Create("UIListLayout", {
-        Padding = UDim.new(0, 2),
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = navList,
-    })
-    self._navList = navList
-
-    local settingsDivider = Create("Frame", {
-        Name = "Divider",
-        BorderSizePixel = 0,
-        Position = UDim2.new(0, 10, 1, -44),
-        Size = UDim2.new(1, -20, 0, 1),
-        Parent = sidebar,
-    })
-    self:_paint(settingsDivider, "BackgroundColor3", "Border")
-
-    local settingsHolder = Create("Frame", {
-        Name = "SettingsHolder",
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Position = UDim2.new(0, 8, 1, -38),
-        Size = UDim2.new(1, -16, 0, 30),
-        Parent = sidebar,
-    })
-    self._settingsNav = self:_makeNavItem(settingsHolder, "Settings", "settings")
-
-    -- icerik
-    local content = Create("Frame", {
-        Name = "Content",
         BorderSizePixel = 0,
         ClipsDescendants = true,
-        Position = UDim2.fromOffset(150, 36),
-        Size = UDim2.new(1, -158, 1, -44),
-        Parent = main,
+        Position = UDim2.fromOffset(0, 40),
+        Size = UDim2.new(1, 0, 1, -40),
+        Parent = body,
     })
-    Corner(content, 8)
-    local contentStroke = Stroke(content)
-    self:_style(content, function(t)
-        content.BackgroundColor3 = t.Background
-        contentStroke.Color = t.Border
-    end)
-    self._content = content
+    self._tabHolder = tabHolder
 
     local noResults = Label({
         Name = "NoResults",
         AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.4),
         Size = UDim2.new(1, -40, 0, 20),
         Text = "No results",
+        TextSize = 13,
         TextXAlignment = Enum.TextXAlignment.Center,
         Visible = false,
-        Parent = content,
+        Parent = tabHolder,
     })
     self:_paint(noResults, "TextColor3", "TextMuted")
     self._noResults = noResults
@@ -3789,16 +3804,16 @@ function Nexo.CreateWindow(config)
     end)
     self._resizeGrip = grip
 
-    -- ayarlar sayfasi
-    self._settingsTab = self:_newPage()
-    self._settingsNav.button.MouseButton1Click:Connect(function()
-        self._settingsOpen = not self._settingsOpen
-        self:_refreshPages()
-    end)
+    self._settingsTab = self:_buildPage()
 
     --====================================================================--
     -- Pencere davranislari
     --====================================================================--
+
+    settingsButton.MouseButton1Click:Connect(function()
+        self._settingsOpen = not self._settingsOpen
+        self:_refreshPages()
+    end)
 
     closeButton.MouseButton1Click:Connect(function()
         self:Hide()
@@ -3854,7 +3869,7 @@ function Nexo.CreateWindow(config)
                 local screen = screenGui.AbsoluteSize
                 local size = main.AbsoluteSize
                 local x = math.clamp(startPosition.X + delta.X, 80 - size.X, screen.X - 80)
-                local y = math.clamp(startPosition.Y + delta.Y, 0, screen.Y - 36)
+                local y = math.clamp(startPosition.Y + delta.Y, 0, screen.Y - TOPBAR_HEIGHT)
                 main.Position = UDim2.fromOffset(x, y)
             end
         end)
@@ -3891,7 +3906,7 @@ function Nexo.CreateWindow(config)
                 local screen = screenGui.AbsoluteSize
                 local position = main.AbsolutePosition
                 local newX = math.clamp(startSize.X + delta.X, 460, math.max(460, screen.X - position.X))
-                local newY = math.clamp(startSize.Y + delta.Y, 300, math.max(300, screen.Y - position.Y))
+                local newY = math.clamp(startSize.Y + delta.Y, 320, math.max(320, screen.Y - position.Y))
                 main.Size = UDim2.fromOffset(newX, newY)
             end
         end)
