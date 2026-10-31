@@ -149,8 +149,6 @@ local function Create(className: string, props: {[string]: any}?): Instance
     return instance
 end
 
--- 4 corner radius — yeni köşe API'si destekleniyorsa köşe köşe basar,
--- desteklenmiyorsa tek CornerRadius ile çalışır (executor fallback).
 local function ApplyCorner(parent: Instance, radius: number, tl: number?, tr: number?, br: number?, bl: number?)
     local corner = Create("UICorner", {
         CornerRadius = UDim.new(0, radius),
@@ -158,10 +156,11 @@ local function ApplyCorner(parent: Instance, radius: number, tl: number?, tr: nu
     })
 
     if CORNER_SIDES_SUPPORTED and (tl ~= nil or tr ~= nil or br ~= nil or bl ~= nil) then
-        (corner :: any).TopLeftRadius = UDim.new(0, tl or radius)
-        (corner :: any).TopRightRadius = UDim.new(0, tr or radius)
-        (corner :: any).BottomRightRadius = UDim.new(0, br or radius)
-        (corner :: any).BottomLeftRadius = UDim.new(0, bl or radius)
+        local c = corner :: any
+        c.TopLeftRadius = UDim.new(0, tl or radius)
+        c.TopRightRadius = UDim.new(0, tr or radius)
+        c.BottomRightRadius = UDim.new(0, br or radius)
+        c.BottomLeftRadius = UDim.new(0, bl or radius)
     end
 
     return corner
@@ -264,12 +263,9 @@ end
 
 -- small pop effect used on topbar button clicks
 local function PopScale(target: Instance)
-    local scale = target:FindFirstChildOfClass("UIScale")
-    if not scale then
-        scale = Instance.new("UIScale")
-        scale.Parent = target
-    end
-    (scale :: UIScale).Scale = 0.85
+    local scale: UIScale = target:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
+    scale.Parent = target
+    scale.Scale = 0.85
     TweenService:Create(scale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
         Scale = 1,
     }):Play()
@@ -1450,7 +1446,7 @@ function Window:Show()
 
     -- açılış pop animasyonu
     if self._windowScale then
-        (self._windowScale :: UIScale).Scale = 0.94
+        self._windowScale.Scale = 0.94
         TweenService:Create(self._windowScale, TweenInfo.new(
             0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out
         ), { Scale = 1 }):Play()
@@ -1467,8 +1463,10 @@ function Window:Hide()
         shrink:Play()
         shrink.Completed:Once(function()
             main.Visible = false
-            (self._windowScale :: UIScale).Scale = 1
-        end)
+            if self._windowScale then
+                self._windowScale.Scale = 1
+            end
+    end)
     else
         main.Visible = false
     end
