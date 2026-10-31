@@ -1,0 +1,162 @@
+local RunService = game:GetService("RunService")
+
+export type Asset = {
+	IconName: string, -- "icon-name"
+	Id: number, -- 123456789
+	Url: string, -- "rbxassetid://123456789"
+	ImageRectSize: Vector2, -- Vector2.new(0, 0)
+	ImageRectOffset: Vector2, -- Vector2.new(0, 0)
+}
+local IconsChunk = loadstring(game:HttpGet('https://raw.githubusercontent.com/corapluz/uilibv2/refs/heads/main/icons.lua'))
+assert(IconsChunk, "[LucideRoblox] Failed to loadstring icons.lua")
+local Icons = IconsChunk()
+assert(type(Icons) == "table", "[LucideRoblox] icons.lua did not return a table")
+
+local Type = typeof or type
+local function CheckArgTypes(funcName: string, inputArgs: {any}, typeEntries: {[number]: {string}})
+	for ArgIndex, TypeEntryArray in typeEntries do
+		local ArgName = TypeEntryArray[1]
+		local ExpectedType = TypeEntryArray[2]
+
+		local InputArg = inputArgs[ArgIndex]
+		local InputArgType = Type(InputArg)
+
+		if InputArgType ~= ExpectedType then
+			error("[LucideRoblox] " .. funcName .. ": Argument " .. ArgIndex .. " (" .. ArgName .. "): expected type `" .. ExpectedType .. "`, got `" .. InputArgType .. "`", 3)
+		end
+	end
+end
+
+local function TrimIconIdentifier(inputIconIdentifier: string): string
+	return string.match(string.lower(inputIconIdentifier), "^%s*(.*)%s*$") :: string
+end
+
+local function ApplyToInstance(object: Instance, properties: {[string]: any}): Instance
+	if properties then
+		for Property, Value in properties do
+			if Property ~= "Parent" then
+				object[Property] = Value
+			end
+		end
+
+		if properties.Parent then
+			object.Parent = properties.Parent
+		end
+	end
+
+	return object
+end
+
+local LucideRoblox = {}
+
+do
+	local IconNames: {string} = {}
+	local _, FirstIconIndex = next(Icons)
+	FirstIconIndex = FirstIconIndex or {}
+
+	for IconName in FirstIconIndex do
+		table.insert(IconNames, IconName)
+	end
+
+	table.sort(IconNames)
+	table.freeze(IconNames)
+	LucideRoblox.IconNames = IconNames
+end
+
+function LucideRoblox.GetAsset(iconName: string, iconSize: number): Asset
+	local IconSize = if iconSize ~= nil then iconSize else 256
+	
+	CheckArgTypes("Lucide.GetAsset", {iconName, IconSize}, {
+		[1] = {"iconName", "string"},
+		[2] = {"iconSize", "number"},
+	})
+	
+	local IconName = TrimIconIdentifier(iconName)
+	
+	-- If reading directly from a UI obj w/ a negative size..?
+	if IconSize < 0 then
+		IconSize = -IconSize
+	end
+	
+	local RealSizeIndex = if IconSize <= 48 then "48" else "256"
+	local IconIndexDict = Icons[RealSizeIndex]
+
+	if not IconIndexDict then
+		error("[LucideRoblox] GetAsset: Internal error: Failed to find icon index for specified size")
+	end
+
+	local RawAsset = IconIndexDict[IconName]
+	if not RawAsset then
+		error("[LucideRoblox] GetAsset: Failed to find icon by the name of \"" .. IconName .. "\" (@" .. RealSizeIndex .. "), perhaps a spelling mistake?", 2)
+	end
+
+	local Id = RawAsset
+	local Url = "rbxassetid://" .. Id
+
+	local Asset: Asset = {
+		IconName = IconName,
+		Id = Id,
+		Url = Url,
+		ImageRectSize = Vector2.new(0, 0),
+		ImageRectOffset = Vector2.new(0, 0),
+	}
+
+	return Asset
+end
+
+function LucideRoblox.GetAllAssets(inputSize: number?): {Asset}
+	local InputSize = if inputSize == nil then 256 else inputSize
+
+	CheckArgTypes("Lucide.GetAllAssets", {InputSize}, {
+		[1] = {"inputSize", "number"},
+	})
+
+	local Assets = {}
+
+	for _, IconName in LucideRoblox.IconNames do
+		local Asset = LucideRoblox.GetAsset(IconName, InputSize)
+		if Asset then
+			table.insert(Assets, Asset)
+		end
+	end
+
+	-- `Lucide.IconNames` is already pre-sorted
+	return Assets
+end
+
+function LucideRoblox.ImageLabel(iconName: string, imageSize: number?, propertyOverrides: {[string]: any}?): ImageLabel
+	local ImageSize = if imageSize == nil then 256 else imageSize
+	local PropertyOverrides = if propertyOverrides == nil then {} else propertyOverrides
+
+	CheckArgTypes("Lucide.ImageLabel", {iconName, imageSize, propertyOverrides}, {
+		[1] = {"iconName", "string"},
+		[2] = {"imageSize", "number"},
+		[3] = {"propertyOverrides", "table"}
+	})
+
+	local Asset = LucideRoblox.GetAsset(iconName, ImageSize)
+
+	local ImageLabel = ApplyToInstance(Instance.new("ImageLabel"), {
+		Name = Asset.IconName,
+
+		Size = UDim2.fromOffset(ImageSize, ImageSize),
+
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+
+		Image = Asset.Url,
+		ImageRectSize = Asset.ImageRectSize,
+		ImageRectOffset = Asset.ImageRectOffset,
+		ImageColor3 = Color3.new(1, 1, 1), -- #FFFFFF
+		ScaleType = Enum.ScaleType.Fit,
+	})
+
+	-- Apply any provided overrides
+	ApplyToInstance(ImageLabel, PropertyOverrides)
+
+	return ImageLabel
+end
+
+table.freeze(LucideRoblox)
+return LucideRoblox
